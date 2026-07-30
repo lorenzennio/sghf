@@ -186,6 +186,34 @@ def test_toy_q0_vectorizes_profile_statistics(monkeypatch) -> None:
     assert calls <= 1
 
 
+def test_toy_q0_generates_statistics_in_batches(monkeypatch) -> None:
+    model = sghf.load(counting_workspace())
+    generated_sizes = []
+    original = toy_module.generate_toys
+
+    def counted_generate_toys(model, size, **kwargs):
+        generated_sizes.append(size)
+        return original(model, size, **kwargs)
+
+    monkeypatch.setattr(
+        toy_module,
+        "generate_toys",
+        counted_generate_toys,
+    )
+
+    result = model.hypotest(
+        0.0,
+        calculator="toys",
+        test_stat="q0",
+        ntoys=53,
+        batch_size=11,
+        rng=5,
+    )
+
+    assert result.batch_size == 11
+    assert generated_sizes == [11, 11, 11, 11, 9] * 2
+
+
 @pytest.mark.parametrize(
     ("test_stat", "poi_test"),
     [("q0", 0.0), ("q", 1.0), ("qtilde", 1.0)],

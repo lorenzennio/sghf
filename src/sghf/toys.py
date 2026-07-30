@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 FloatArray = NDArray[np.float64]
+_MAX_TOY_BATCH_BYTES = 128 * 1024**2
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class ToyHypothesisTestResult:
     cls: float
     expected_cls: tuple[float, float, float, float, float]
     ntoys: int
+    batch_size: int
     variance: Variance
     sb_statistics: FloatArray
     b_statistics: FloatArray
@@ -61,6 +63,7 @@ class ToyDiscoveryTestResult:
     expected_p0: tuple[float, float, float, float, float]
     expected_significance: tuple[float, float, float, float, float]
     ntoys: int
+    batch_size: int
     variance: Variance
     null_statistics: FloatArray
     alternative_statistics: FloatArray
@@ -300,6 +303,59 @@ def _toy_statistics(
     return statistics
 
 
+def _resolve_batch_size(
+    model: Model,
+    ntoys: int,
+    batch_size: int | None,
+) -> int:
+    if batch_size is not None:
+        if isinstance(batch_size, bool) or not isinstance(
+            batch_size,
+            (int, np.integer),
+        ):
+            raise TypeError("batch_size must be an integer or None")
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+        return min(int(batch_size), ntoys)
+    bytes_per_toy = 8 * (
+        model.nominal_expected.size + model.initial.size
+    )
+    memory_limited = max(1, _MAX_TOY_BATCH_BYTES // bytes_per_toy)
+    return min(ntoys, memory_limited)
+
+
+def _generate_test_statistics(
+    model: Model,
+    poi_test: float,
+    *,
+    parameters: FitResult,
+    test_stat: TestStatistic,
+    variance: Variance,
+    sampling: Literal["poisson", "gaussian"],
+    ntoys: int,
+    batch_size: int,
+    generator: np.random.Generator,
+) -> FloatArray:
+    statistics = np.empty(ntoys)
+    for start in range(0, ntoys, batch_size):
+        stop = min(start + batch_size, ntoys)
+        toys = generate_toys(
+            model,
+            stop - start,
+            parameters=parameters,
+            sampling=sampling,
+            rng=generator,
+        )
+        statistics[start:stop] = _toy_statistics(
+            model,
+            poi_test,
+            toys,
+            test_stat=test_stat,
+            variance=variance,
+        )
+    return statistics
+
+
 def _conditional_fit(
     model: Model,
     observed: FloatArray,
@@ -327,6 +383,7 @@ def _toy_discovery(
     *,
     variance: Variance,
     ntoys: int,
+    batch_size: int,
     sampling: Literal["poisson", "gaussian"],
     generator: np.random.Generator,
 ) -> ToyDiscoveryTestResult:
@@ -344,33 +401,27 @@ def _toy_discovery(
         1.0,
         variance=variance,
     )
-    null_toys = generate_toys(
+    null_statistics = _generate_test_statistics(
         model,
-        ntoys,
+        0.0,
         parameters=fixed_fit,
+        test_stat="q0",
+        variance=variance,
         sampling=sampling,
-        rng=generator,
+        ntoys=ntoys,
+        batch_size=batch_size,
+        generator=generator,
     )
-    alternative_toys = generate_toys(
+    alternative_statistics = _generate_test_statistics(
         model,
-        ntoys,
+        0.0,
         parameters=alternative_fit,
+        test_stat="q0",
+        variance=variance,
         sampling=sampling,
-        rng=generator,
-    )
-    null_statistics = _toy_statistics(
-        model,
-        0.0,
-        null_toys,
-        test_stat="q0",
-        variance=variance,
-    )
-    alternative_statistics = _toy_statistics(
-        model,
-        0.0,
-        alternative_toys,
-        test_stat="q0",
-        variance=variance,
+        ntoys=ntoys,
+        batch_size=batch_size,
+        generator=generator,
     )
     if variance == "nominal":
         observed_q = float(
@@ -411,6 +462,7 @@ def _toy_discovery(
         expected_p0=expected_p0,  # type: ignore[arg-type]
         expected_significance=expected_significance,  # type: ignore[arg-type]
         ntoys=ntoys,
+        batch_size=batch_size,
         variance=variance,
         null_statistics=null_statistics,
         alternative_statistics=alternative_statistics,
@@ -428,6 +480,7 @@ def toy_hypotest(
     test_stat: TestStatistic = "qtilde",
     variance: Variance = "nominal",
     ntoys: int = 10_000,
+    batch_size: int | None = None,
     sampling: Literal["poisson", "gaussian"] = "poisson",
     rng: int | np.random.Generator | None = None,
 ) -> ToyHypothesisTestResult | ToyDiscoveryTestResult:
@@ -447,6 +500,7 @@ def toy_hypotest(
     if ntoys <= 0:
         raise ValueError("ntoys must be positive")
     ntoys = int(ntoys)
+    batch_size = _resolve_batch_size(model, ntoys, batch_size)
     observed = _data_array(model, data)
     generator = _rng(rng)
     if test_stat == "q0":
@@ -455,6 +509,7 @@ def toy_hypotest(
             observed,
             variance=variance,
             ntoys=ntoys,
+            batch_size=batch_size,
             sampling=sampling,
             generator=generator,
         )
@@ -472,19 +527,27 @@ def toy_hypotest(
         fixed={model.poi_name: 0.0},
         variance=variance,
     )
-    sb_toys = generate_toys(
+    sb_statistics = _generate_test_statistics(
         model,
-        ntoys,
+        poi_test,
         parameters=fixed_fit,
+        test_stat=test_stat,
+        variance=variance,
         sampling=sampling,
-        rng=generator,
+        ntoys=ntoys,
+        batch_size=batch_size,
+        generator=generator,
     )
-    b_toys = generate_toys(
+    b_statistics = _generate_test_statistics(
         model,
-        ntoys,
+        poi_test,
         parameters=background_fit,
+        test_stat=test_stat,
+        variance=variance,
         sampling=sampling,
-        rng=generator,
+        ntoys=ntoys,
+        batch_size=batch_size,
+        generator=generator,
     )
     if variance == "nominal":
         q = float(
@@ -496,20 +559,6 @@ def toy_hypotest(
                 test_stat=test_stat,
             )[0]
         )
-    sb_statistics = _toy_statistics(
-        model,
-        poi_test,
-        sb_toys,
-        test_stat=test_stat,
-        variance=variance,
-    )
-    b_statistics = _toy_statistics(
-        model,
-        poi_test,
-        b_toys,
-        test_stat=test_stat,
-        variance=variance,
-    )
 
     sorted_sb = np.sort(sb_statistics)
     sorted_b = np.sort(b_statistics)
@@ -536,6 +585,7 @@ def toy_hypotest(
         cls=clsb / clb,
         expected_cls=expected_cls,  # type: ignore[arg-type]
         ntoys=ntoys,
+        batch_size=batch_size,
         variance=variance,
         sb_statistics=sb_statistics,
         b_statistics=b_statistics,

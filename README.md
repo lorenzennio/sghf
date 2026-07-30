@@ -116,6 +116,7 @@ discovery = model.hypotest(
     calculator="toys",
     test_stat="q0",
     ntoys=100_000,
+    batch_size=10_000,
     rng=17,
 )
 print(discovery.p0, discovery.significance)
@@ -132,7 +133,9 @@ toy statistics in a vectorized linear solve. It supports the discovery
 statistic `q0`, returning empirical `p0` and significance, as well as the
 exclusion statistics `q` and `qtilde`. Pass `variance="iterated"` when
 per-toy iterative reweighting is required; that mode profiles toys
-individually and is substantially slower.
+individually and is substantially slower. Large ensembles are automatically
+batched to limit temporary memory use; pass `batch_size=...` to control the
+tradeoff explicitly.
 
 ## Workspace compatibility
 

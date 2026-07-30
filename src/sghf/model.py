@@ -133,6 +133,7 @@ class Model:
         calculator: Literal["asymptotic", "toys"] = "asymptotic",
         variance: Literal["iterated", "nominal"] | None = None,
         ntoys: int = 10_000,
+        batch_size: int | None = None,
         sampling: Literal["poisson", "gaussian"] = "poisson",
         rng: int | np.random.Generator | None = None,
     ):
@@ -158,6 +159,7 @@ class Model:
                 test_stat=test_stat,
                 variance="nominal" if variance is None else variance,
                 ntoys=ntoys,
+                batch_size=batch_size,
                 sampling=sampling,
                 rng=rng,
             )
