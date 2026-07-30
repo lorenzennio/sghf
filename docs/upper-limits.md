@@ -28,7 +28,7 @@ model.upper_limit(
     *,
     level=0.05,
     test_stat="qtilde",
-    variance="iterated",
+    variance="nominal",
     bracket=None,
 )
 ```

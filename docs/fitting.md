@@ -28,16 +28,18 @@ model.fit(
     auxdata=None,
     fixed=None,
     bounds=None,
-    variance="iterated",
+    variance="nominal",
     rtol=1.0e-6,
     max_iter=25,
 )
 ```
 
-Use `variance="nominal"` when one fixed quadratic approximation and maximum
-speed are required. Use the default `variance="iterated"` when the fitted
-expectations can move enough that updating the expected-count weights is
-important. Comparing the two is also a useful approximation diagnostic.
+The default `variance="nominal"` uses one fixed quadratic approximation and
+is the fastest option; it is also the default everywhere else in the library,
+so fits, asymptotic tests, and toy tests stay mutually consistent. Pass
+`variance="iterated"` when the fitted expectations can move enough that
+updating the expected-count weights is important. Comparing the two is also a
+useful approximation diagnostic.
 
 ## Inputs
 

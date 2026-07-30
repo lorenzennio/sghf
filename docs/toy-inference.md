@@ -52,8 +52,11 @@ discovery = model.hypotest(
 print(discovery.p0, discovery.significance)
 ```
 
-For the toy calculator, `variance=None` selects `variance="nominal"`.
-Supplying `variance="iterated"` enables the slower per-toy fit path.
+The toy calculator defaults to `variance="nominal"`, the same default as the
+asymptotic calculator and `Model.fit`, so the observed `q` agrees between
+calculators. Supplying `variance="iterated"` enables the per-toy fit path;
+it costs one bounded reweighted fit pair per toy and is orders of magnitude
+slower than the vectorized affine shortcut.
 
 ## Pseudo-observation generation
 

@@ -117,7 +117,7 @@ model.approximation -> ApproximationReport
 ```
 
 Returns a concise report with modifier types, scalar parameter names,
-`variance_default="iterated"`, and loading warnings. It does not estimate
+`variance_default="nominal"`, and loading warnings. It does not estimate
 approximation error.
 
 ### `Model.parameter_index`
@@ -181,7 +181,7 @@ model.fit(
     auxdata=None,
     fixed=None,
     bounds=None,
-    variance="iterated",
+    variance="nominal",
     rtol=1.0e-6,
     max_iter=25,
 ) -> FitResult
@@ -216,7 +216,7 @@ model.hypotest(
     *,
     test_stat="qtilde",
     calculator="asymptotic",
-    variance=None,
+    variance="nominal",
     ntoys=10_000,
     batch_size=None,
     sampling="poisson",
@@ -230,18 +230,16 @@ Arguments:
 - `data`: `None`, flat bin sequence, or exact channel mapping;
 - `test_stat`: `"q0"`, `"q"`, or `"qtilde"`;
 - `calculator`: `"asymptotic"` or `"toys"`;
-- `variance`: explicit `"iterated"` or `"nominal"`, or `None`;
+- `variance`: `"iterated"` or `"nominal"`;
 - `ntoys`: positive integer toys per generated ensemble;
 - `batch_size`: positive toy batch size or `None` for automatic selection;
 - `sampling`: `"poisson"` or `"gaussian"` main-toy generation;
 - `rng`: integer seed, `numpy.random.Generator`, or `None`.
 
-Calculator-dependent variance defaults are:
-
-| Calculator | `variance=None` selects |
-|---|---|
-| `"asymptotic"` | `"iterated"` |
-| `"toys"` | `"nominal"` |
+Both calculators default to `variance="nominal"`, so the observed `q` agrees
+between them and their $CL_s$ values are directly comparable. Passing
+`variance="iterated"` is supported by both, but for `calculator="toys"` it
+selects the per-toy fit path and is orders of magnitude slower.
 
 The asymptotic calculator does not use `ntoys`, `batch_size`, `sampling`, or
 `rng`. See [hypothesis testing](hypothesis-testing.md) and
@@ -316,7 +314,7 @@ model.upper_limit(
     *,
     level=0.05,
     test_stat="qtilde",
-    variance="iterated",
+    variance="nominal",
     bracket=None,
 ) -> LimitResult
 ```
@@ -349,7 +347,7 @@ copy is made.
 |---|---|
 | `modifier_types` | `tuple[str, ...]` |
 | `parameter_names` | `tuple[str, ...]` |
-| `variance_default` | literal `"iterated"` |
+| `variance_default` | literal `"nominal"` |
 | `warnings` | `tuple[str, ...]` |
 
 ### `FitResult`

@@ -43,8 +43,8 @@ There are two variance choices for fitting and inference:
 
 | Variance | Definition | Main use |
 |---|---|---|
-| `nominal` | $V=\operatorname{diag}(\boldsymbol{\nu}_0)$ | One exact quadratic solve for the compiled model; the default for vectorized toy inference |
-| `iterated` | $V$ is repeatedly updated from the current fitted expectation | Partially adapts the Gaussian variance to the fitted rate; the default for fits and asymptotic inference |
+| `nominal` | $V=\operatorname{diag}(\boldsymbol{\nu}_0)$ | One exact quadratic solve for the compiled model; the library-wide default, and the mode that makes vectorized toy inference possible |
+| `iterated` | $V$ is repeatedly updated from the current fitted expectation | Partially adapts the Gaussian variance to the fitted rate; an explicit opt-in everywhere |
 
 Neither choice restores the nonlinear HistFactory response. The iterated
 choice changes only the diagonal weights in the quadratic objective.

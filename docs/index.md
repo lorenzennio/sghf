@@ -90,11 +90,17 @@ and documents all arguments and return fields.
 
 | Operation | Default | What it computes |
 |---|---|---|
-| `model.fit()` | iterated variance | constrained reweighted quadratic fit |
-| `model.hypotest(..., calculator="asymptotic")` | iterated variance | profiled statistic plus Wald/Asimov mapping |
+| `model.fit()` | nominal variance | constrained quadratic fit in a single solve |
+| `model.hypotest(..., calculator="asymptotic")` | nominal variance | profiled statistic plus Wald/Asimov mapping |
 | `model.hypotest(..., calculator="toys")` | nominal variance | vectorized empirical exclusion or discovery |
-| toy calculator with `variance="iterated"` | explicit opt-in | per-toy profiled reweighted statistic |
-| `model.upper_limit()` | iterated asymptotic | roots of observed and expected $CL_s$ curves |
+| any of the above with `variance="iterated"` | explicit opt-in | reweighted solves; per-toy fits for the toy calculator |
+| `model.upper_limit()` | nominal asymptotic | roots of observed and expected $CL_s$ curves |
+
+Every entry point defaults to `variance="nominal"` so that the asymptotic and
+toy calculators evaluate the same test statistic and can be compared directly.
+`"iterated"` is the more faithful approximation and remains available
+everywhere as an explicit opt-in, but it is not affordable as a toy default:
+the per-toy fit path costs seconds per toy on a large workspace.
 
 Nominal variance fixes
 $V=\operatorname{diag}(\boldsymbol{\nu}_0)$. Iterated variance updates the

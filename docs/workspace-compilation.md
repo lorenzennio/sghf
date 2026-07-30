@@ -410,7 +410,7 @@ The returned `Model` exposes:
 | `warnings` | accepted compilation warnings |
 
 `model.approximation` returns an `ApproximationReport` with
-`modifier_types`, `parameter_names`, `variance_default="iterated"`, and
+`modifier_types`, `parameter_names`, `variance_default="nominal"`, and
 `warnings`. It is a description of the compiled approximation, not a
 numerical accuracy certificate.
 

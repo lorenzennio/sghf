@@ -38,15 +38,15 @@ model.hypotest(
     *,
     test_stat="qtilde",
     calculator="asymptotic",
-    variance=None,
+    variance="nominal",
     ...
 )
 ```
 
-For `calculator="asymptotic"`, `variance=None` selects
-`variance="iterated"`. An explicit `"nominal"` or `"iterated"` overrides this
-calculator-dependent default. Toy-only arguments are ignored by the
-asymptotic dispatch.
+Both calculators default to `variance="nominal"`, so the asymptotic and toy
+dispatches evaluate the same test statistic and their results can be compared
+directly. Pass `variance="iterated"` explicitly to opt into the reweighted
+statistic. Toy-only arguments are ignored by the asymptotic dispatch.
 
 Use:
 

@@ -76,16 +76,17 @@ The detailed documentation is organized from theory to methods:
 
 ## Fits
 
-The default fit iterates the diagonal Poisson variance from the current
-expected counts. A frozen variance at the workspace's nominal parameter point
-is available for reproducible one-step Gaussian calculations:
+The default fit freezes the diagonal Poisson variance at the workspace's
+nominal parameter point, giving a reproducible one-step Gaussian calculation.
+Pass `variance="iterated"` to instead update the variance from the current
+expected counts:
 
 ```python
 fit = model.fit(
     data={"signal_region": [12, 8], "control_region": [101, 97]},
     fixed={"calibration": 0.0},
     bounds={"mu": (0.0, 5.0)},
-    variance="nominal",
+    variance="iterated",
 )
 ```
 
@@ -142,7 +143,8 @@ fitter accepts without clipping. Constrained parameters receive independently
 fluctuated Gaussian auxiliary measurements. Supplying an integer seed makes the
 generated samples and toy-based result reproducible.
 
-Toy inference uses the nominal quadratic variance by default. It solves once
+Toy inference uses the nominal quadratic variance, which is the library-wide
+default, so its observed statistic matches the asymptotic one. It solves once
 for an affine parameter-of-interest estimator and then evaluates toy
 statistics with vectorized array operations. It supports the discovery
 statistic `q0`, returning empirical `p0` and significance, as well as the
