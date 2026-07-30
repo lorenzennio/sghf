@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sghf"
+version = "0.1.0"
+description = "Fast linear-Gaussian inference for pyhf workspace models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Lorenz Gaertner" },
+]
+keywords = ["statistics", "inference", "histfactory", "pyhf", "physics"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+test = [
+  "build>=1.2",
+  "pytest>=8",
+  "pyhf==0.7.6",
+]
+
+[project.urls]
+Documentation = "https://github.com/lorenzennio/sghf#readme"
+Issues = "https://github.com/lorenzennio/sghf/issues"
+Source = "https://github.com/lorenzennio/sghf"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sghf"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore:jsonschema.RefResolver is deprecated.*:DeprecationWarning:pyhf.schema.validator",
+]
