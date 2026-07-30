@@ -564,11 +564,9 @@ def toy_hypotest(
     sorted_b = np.sort(b_statistics)
     clsb = _tail_probability(sorted_sb, q)
     clb = _tail_probability(sorted_b, q)
-    toy_cls = np.empty(ntoys)
-    for index, statistic in enumerate(b_statistics):
-        toy_clsb = _tail_probability(sorted_sb, statistic)
-        toy_clb = _tail_probability(sorted_b, statistic)
-        toy_cls[index] = toy_clsb / toy_clb
+    toy_cls = _tail_probabilities(
+        sorted_sb, b_statistics
+    ) / _tail_probabilities(sorted_b, b_statistics)
     expected_cls = tuple(
         float(value)
         for value in np.percentile(
