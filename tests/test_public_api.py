@@ -13,7 +13,7 @@ def test_package_exposes_version_and_approximation_report() -> None:
     assert sghf.__version__ == "0.1.0"
     assert sghf.ToyDiscoveryTestResult.__name__ == "ToyDiscoveryTestResult"
     assert model.approximation.modifier_types == ("normfactor",)
-    assert model.approximation.variance_default == "iterated"
+    assert model.approximation.variance_default == "nominal"
     assert model.approximation.parameter_names == ("mu",)
 
 

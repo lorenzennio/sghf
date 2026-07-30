@@ -256,3 +256,15 @@ def test_vectorized_nominal_statistics_match_profile_fits(
 def test_toys_require_positive_size() -> None:
     with pytest.raises(ValueError, match="positive"):
         sghf.load(counting_workspace()).toys(0)
+
+
+def test_both_calculators_share_the_default_variance() -> None:
+    workspace = counting_workspace()
+    workspace["observations"][0]["data"] = [70.0]
+    model = sghf.load(workspace)
+
+    asymptotic = model.hypotest(4.0)
+    toys = model.hypotest(4.0, calculator="toys", ntoys=500, rng=17)
+
+    assert asymptotic.q == pytest.approx(toys.q)
+    assert toys.variance == "nominal"

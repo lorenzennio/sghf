@@ -224,7 +224,7 @@ def fit_model(
     auxdata: Sequence[float] | Mapping[str, float] | None = None,
     fixed: Mapping[str, float] | None = None,
     bounds: Mapping[str, tuple[float, float]] | None = None,
-    variance: Literal["iterated", "nominal"] = "iterated",
+    variance: Literal["iterated", "nominal"] = "nominal",
     rtol: float = 1.0e-6,
     max_iter: int = 25,
 ) -> FitResult:

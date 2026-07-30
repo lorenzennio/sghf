@@ -131,7 +131,7 @@ def hypotest(
     data: Sequence[float] | Mapping[str, Sequence[float]] | None = None,
     *,
     test_stat: TestStatistic = "qtilde",
-    variance: Variance = "iterated",
+    variance: Variance = "nominal",
 ) -> HypothesisTestResult:
     """Run an asymptotic profile test using the compiled quadratic model."""
 
@@ -211,7 +211,7 @@ def upper_limit(
     *,
     level: float = 0.05,
     test_stat: Literal["q", "qtilde"] = "qtilde",
-    variance: Variance = "iterated",
+    variance: Variance = "nominal",
     bracket: tuple[float, float] | None = None,
 ) -> LimitResult:
     """Find CLs upper-limit crossings with scalar root finding."""

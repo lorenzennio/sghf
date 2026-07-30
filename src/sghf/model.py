@@ -20,7 +20,7 @@ class ApproximationReport:
 
     modifier_types: tuple[str, ...]
     parameter_names: tuple[str, ...]
-    variance_default: Literal["iterated"] = "iterated"
+    variance_default: Literal["nominal"] = "nominal"
     warnings: tuple[str, ...] = ()
 
 
@@ -105,7 +105,7 @@ class Model:
         auxdata: Sequence[float] | Mapping[str, float] | None = None,
         fixed: Mapping[str, float] | None = None,
         bounds: Mapping[str, tuple[float, float]] | None = None,
-        variance: Literal["iterated", "nominal"] = "iterated",
+        variance: Literal["iterated", "nominal"] = "nominal",
         rtol: float = 1.0e-6,
         max_iter: int = 25,
     ):
@@ -131,7 +131,7 @@ class Model:
         *,
         test_stat: Literal["q0", "q", "qtilde"] = "qtilde",
         calculator: Literal["asymptotic", "toys"] = "asymptotic",
-        variance: Literal["iterated", "nominal"] | None = None,
+        variance: Literal["iterated", "nominal"] = "nominal",
         ntoys: int = 10_000,
         batch_size: int | None = None,
         sampling: Literal["poisson", "gaussian"] = "poisson",
@@ -147,7 +147,7 @@ class Model:
                 poi_test,
                 data=data,
                 test_stat=test_stat,
-                variance="iterated" if variance is None else variance,
+                variance=variance,
             )
         if calculator == "toys":
             from .toys import toy_hypotest
@@ -157,7 +157,7 @@ class Model:
                 poi_test,
                 data=data,
                 test_stat=test_stat,
-                variance="nominal" if variance is None else variance,
+                variance=variance,
                 ntoys=ntoys,
                 batch_size=batch_size,
                 sampling=sampling,
@@ -193,7 +193,7 @@ class Model:
         *,
         level: float = 0.05,
         test_stat: Literal["q", "qtilde"] = "qtilde",
-        variance: Literal["iterated", "nominal"] = "iterated",
+        variance: Literal["iterated", "nominal"] = "nominal",
         bracket: tuple[float, float] | None = None,
     ):
         """Calculate observed and expected asymptotic upper limits."""

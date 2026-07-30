@@ -38,7 +38,7 @@ def counting_workspace(
 
 
 def test_fit_recovers_one_bin_signal_strength_and_iterated_error() -> None:
-    fit = sghf.load(counting_workspace()).fit()
+    fit = sghf.load(counting_workspace()).fit(variance="iterated")
 
     assert fit.value("mu") == pytest.approx(2.0)
     assert fit.error("mu") == pytest.approx(np.sqrt(60.0) / 10.0)
@@ -134,7 +134,7 @@ def test_iterated_fit_damps_oscillating_variance_updates() -> None:
         modifier_types=("normfactor",),
     )
 
-    fit = model.fit()
+    fit = model.fit(variance="iterated")
 
     assert fit.value("mu") == pytest.approx(1.994928, rel=1.0e-5)
     assert fit.iterations <= 25
