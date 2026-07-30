@@ -78,6 +78,24 @@ def test_fit_accepts_toy_auxiliary_data() -> None:
     assert fit.value("eff") == pytest.approx(1.0 / 3.0)
 
 
+def test_fit_accepts_negative_gaussian_pseudo_observations() -> None:
+    workspace = counting_workspace()
+    workspace["channels"][0]["samples"][1]["data"] = [0.01]
+    workspace["observations"][0]["data"] = [0.01]
+    model = sghf.load(workspace)
+    toys = model.toys(
+        8,
+        parameters={"mu": 0.0},
+        sampling="gaussian",
+        rng=1,
+    )
+    negative = toys.observations[toys.observations < 0]
+
+    assert negative.size > 0
+    fit = model.fit(data=[negative[0]], variance="nominal")
+    assert fit.converged
+
+
 def test_toy_hypotest_is_reproducible_and_uses_smoothed_pvalues() -> None:
     model = sghf.load(counting_workspace())
     first = model.hypotest(

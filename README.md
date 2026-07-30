@@ -113,9 +113,10 @@ toy_test = model.hypotest(
 ```
 
 Poisson sampling is the default; Gaussian main-measurement sampling is also
-available. Constrained parameters receive independently fluctuated Gaussian
-auxiliary measurements. Supplying an integer seed makes the generated samples
-and toy-based result reproducible.
+available and can produce negative pseudo-observations, which the quadratic
+fitter accepts without clipping. Constrained parameters receive independently
+fluctuated Gaussian auxiliary measurements. Supplying an integer seed makes the
+generated samples and toy-based result reproducible.
 
 ## Workspace compatibility
 

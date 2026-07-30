@@ -76,8 +76,8 @@ def _data_array(
         raise ValueError(
             f"Data must contain {model.nominal_expected.size} bin value(s)"
         )
-    if not np.all(np.isfinite(result)) or np.any(result < 0):
-        raise ValueError("Data values must be finite and nonnegative")
+    if not np.all(np.isfinite(result)):
+        raise ValueError("Data values must be finite")
     return result
 
 
