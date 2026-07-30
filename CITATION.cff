@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use SGHF, please cite this software."
+title: "SGHF: fast linear-Gaussian inference for pyhf workspace models"
+type: software
+authors:
+  - family-names: "Gaertner"
+    given-names: "Lorenz"
+    email: "lorenz.gaertner@physik.uni-muenchen.de"
+version: 0.1.0
+date-released: 2026-07-29
+license: MIT
+repository-code: "https://github.com/lorenzennio/sghf"
