@@ -7,6 +7,10 @@
 and happens once. Subsequent fits and tests operate on the resulting `Model`;
 they do not revisit the JSON modifier objects.
 
+The external model and schema references are collected under
+[HistFactory and pyhf](references.md#histfactory-and-pyhf). The formulas on
+this page are the behavior of SGHF's compiler, not generic pyhf formulas.
+
 ## Loading a workspace
 
 ```python
@@ -193,7 +197,7 @@ $$
 $$
 
 A measurement `sigma` can supply a Gaussian luminosity constraint
-$P=1/\sigma^2`. The compiler does not infer a luminosity uncertainty from the
+$P=1/\sigma^2$. The compiler does not infer a luminosity uncertainty from the
 modifier object itself.
 
 Thus the local response is

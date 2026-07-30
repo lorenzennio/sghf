@@ -43,8 +43,8 @@ limit = model.upper_limit()
 print(limit.observed, limit.expected)
 ```
 
-The expected tuples are ordered as `(-2 sigma, -1 sigma, median, +1 sigma,
-+2 sigma)`.
+Expected `CLs` and upper-limit tuples are ordered as
+`(-2 sigma, -1 sigma, median, +1 sigma, +2 sigma)`.
 
 Loading accepts a path, a text file object, or an already-decoded mapping.
 When a workspace has multiple measurements, select one explicitly:
@@ -59,6 +59,20 @@ Unknown top-level metadata is ignored with `sghf.WorkspaceWarning`. Use
 ```python
 model = sghf.load(workspace, strict=True)
 ```
+
+## Documentation
+
+The detailed documentation is organized from theory to methods:
+
+- [documentation index](docs/index.md)
+- [simplified likelihood and approximations](docs/simplified-likelihood.md)
+- [workspace and modifier compilation](docs/workspace-compilation.md)
+- [fitting](docs/fitting.md)
+- [hypothesis testing](docs/hypothesis-testing.md)
+- [toy inference, including `q0` discovery](docs/toy-inference.md)
+- [upper limits](docs/upper-limits.md)
+- [API reference](docs/api-reference.md)
+- [validation and applicability checklist](docs/validation-and-applicability.md)
 
 ## Fits
 
@@ -128,14 +142,16 @@ fitter accepts without clipping. Constrained parameters receive independently
 fluctuated Gaussian auxiliary measurements. Supplying an integer seed makes the
 generated samples and toy-based result reproducible.
 
-Toy inference uses the nominal quadratic variance by default and evaluates all
-toy statistics in a vectorized linear solve. It supports the discovery
+Toy inference uses the nominal quadratic variance by default. It solves once
+for an affine parameter-of-interest estimator and then evaluates toy
+statistics with vectorized array operations. It supports the discovery
 statistic `q0`, returning empirical `p0` and significance, as well as the
 exclusion statistics `q` and `qtilde`. Pass `variance="iterated"` when
 per-toy iterative reweighting is required; that mode profiles toys
 individually and is substantially slower. Large ensembles are automatically
 batched to limit temporary memory use; pass `batch_size=...` to control the
-tradeoff explicitly.
+tradeoff explicitly. See [toy inference](docs/toy-inference.md) for the exact
+statistics, conditional ensembles, and finite Monte Carlo resolution.
 
 ## Workspace compatibility
 

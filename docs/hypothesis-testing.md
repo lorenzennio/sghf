@@ -8,10 +8,12 @@ to asymptotic probabilities or calibrate them with pseudo-experiments. This
 page describes the asymptotic path; the ensemble path is in
 [toy inference](toy-inference.md).
 
-The conventions follow the profile-likelihood and Asimov framework of Cowan
-et al. and the modified-frequentist construction summarized in the
-[references](references.md), but every equation below is written for the
-specific quantities returned by SGHF.
+The conventions follow the
+[profile-likelihood and Asimov framework](references.md#profile-likelihood-and-asymptotic-tests)
+and the
+[modified-frequentist construction](references.md#modified-frequentist-cls),
+but every equation below is written for the specific quantities returned by
+SGHF.
 
 ## Operational summary
 
@@ -210,9 +212,9 @@ inspection.
 
 Consequences of this construction are:
 
-- exclusion uses nuisance values conditionally fitted at $\mu=0`;
+- exclusion uses nuisance values conditionally fitted at $\mu=0$;
 - discovery expectation uses nuisance values conditionally fitted at
-  $\mu=1`;
+  $\mu=1$;
 - $q_A$ depends on the supplied observed data through those conditional
   nuisance estimates;
 - the configured POI bounds must admit the Asimov truth value used by the
@@ -247,7 +249,7 @@ t
 \end{cases}
 $$
 
-If $\sqrt{q_A}=0`, the first expression is used. The transformed statistic is
+If $\sqrt{q_A}=0$, the first expression is used. The transformed statistic is
 bounded below at $-\sqrt{q_A}$ for the clipped `qtilde` construction.
 
 Let $\Phi$ be the standard-normal cumulative distribution function. SGHF

@@ -10,8 +10,9 @@ implementation of that likelihood.
 
 This page defines the statistical model. The exact translation from workspace
 objects into its arrays is given in [workspace compilation](workspace-compilation.md).
-The construction is motivated by the HistFactory model and profile-likelihood
-methods summarized in the [references](references.md).
+The construction is motivated by the
+[HistFactory and pyhf model](references.md#histfactory-and-pyhf) and the
+[profile-likelihood literature](references.md#profile-likelihood-and-asymptotic-tests).
 
 ## Operational summary
 

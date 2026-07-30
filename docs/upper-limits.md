@@ -6,6 +6,10 @@
 observed upper limit and five expected limits. The current method does not
 invert toy-calibrated tests.
 
+The statistical origin of the ratio is given in the
+[modified-frequentist reference](references.md#modified-frequentist-cls);
+this page documents SGHF's implemented inversion.
+
 ## Operational summary
 
 ```python

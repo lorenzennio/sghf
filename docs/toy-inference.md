@@ -330,8 +330,9 @@ $$
 $$
 
 The correction prevents a zero estimate when no simulated statistic reaches
-the threshold; see the Monte Carlo calibration discussion in the
-[references](references.md). Its immediate consequences are:
+the threshold; see the
+[Monte Carlo tail-probability reference](references.md#monte-carlo-tail-probabilities).
+Its immediate consequences are:
 
 - the minimum returned tail probability is $1/(N+1)$;
 - the maximum is one;
