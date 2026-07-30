@@ -110,15 +110,29 @@ toy_test = model.hypotest(
     ntoys=10_000,
     rng=17,
 )
+
+discovery = model.hypotest(
+    0.0,
+    calculator="toys",
+    test_stat="q0",
+    ntoys=100_000,
+    rng=17,
+)
+print(discovery.p0, discovery.significance)
 ```
 
 Poisson sampling is the default; Gaussian main-measurement sampling is also
 available and can produce negative pseudo-observations, which the quadratic
 fitter accepts without clipping. Constrained parameters receive independently
 fluctuated Gaussian auxiliary measurements. Supplying an integer seed makes the
-generated samples and toy-based result reproducible. Toy-based inference
-supports the exclusion statistics `q` and `qtilde`; use the asymptotic
-calculator for `q0` discovery tests.
+generated samples and toy-based result reproducible.
+
+Toy inference uses the nominal quadratic variance by default and evaluates all
+toy statistics in a vectorized linear solve. It supports the discovery
+statistic `q0`, returning empirical `p0` and significance, as well as the
+exclusion statistics `q` and `qtilde`. Pass `variance="iterated"` when
+per-toy iterative reweighting is required; that mode profiles toys
+individually and is substantially slower.
 
 ## Workspace compatibility
 

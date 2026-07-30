@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy.stats import norm
 
 from .asymptotic import TestStatistic, Variance, _profile_statistic
+from .exceptions import NonIdentifiableModel
 from .fit import FitResult, _data_array
 
 if TYPE_CHECKING:
@@ -40,10 +42,31 @@ class ToyHypothesisTestResult:
     cls: float
     expected_cls: tuple[float, float, float, float, float]
     ntoys: int
+    variance: Variance
     sb_statistics: FloatArray
     b_statistics: FloatArray
     free_fit: FitResult
     fixed_fit: FitResult
+
+
+@dataclass(frozen=True)
+class ToyDiscoveryTestResult:
+    """Empirical ``q0`` discovery result from pseudo-experiments."""
+
+    poi_test: float
+    test_stat: Literal["q0"]
+    q: float
+    p0: float
+    significance: float
+    expected_p0: tuple[float, float, float, float, float]
+    expected_significance: tuple[float, float, float, float, float]
+    ntoys: int
+    variance: Variance
+    null_statistics: FloatArray
+    alternative_statistics: FloatArray
+    free_fit: FitResult
+    fixed_fit: FitResult
+    alternative_fit: FitResult
 
 
 def _rng(value: int | np.random.Generator | None) -> np.random.Generator:
@@ -129,32 +152,316 @@ def _tail_probability(sorted_statistics: FloatArray, value: float) -> float:
     return float((count + 1) / (sorted_statistics.size + 1))
 
 
+def _tail_probabilities(
+    sorted_statistics: FloatArray,
+    values: FloatArray,
+) -> FloatArray:
+    counts = sorted_statistics.size - np.searchsorted(
+        sorted_statistics,
+        values,
+        side="left",
+    )
+    return (counts + 1) / (sorted_statistics.size + 1)
+
+
+def _nominal_poi_estimates(
+    model: Model,
+    observations: NDArray[np.floating] | NDArray[np.integer],
+    auxiliary: NDArray[np.floating],
+) -> tuple[FloatArray, float]:
+    """Evaluate the nominal linear-Gaussian POI estimator in one batch."""
+
+    observed = np.asarray(observations, dtype=float)
+    auxdata = np.asarray(auxiliary, dtype=float)
+    if observed.ndim == 1:
+        observed = observed[np.newaxis, :]
+    if auxdata.ndim == 1:
+        auxdata = auxdata[np.newaxis, :]
+    if observed.ndim != 2 or observed.shape[1] != model.nominal_expected.size:
+        raise ValueError("Toy observations have the wrong shape")
+    if auxdata.shape != (observed.shape[0], model.initial.size):
+        raise ValueError("Toy auxiliary data have the wrong shape")
+
+    free = np.flatnonzero(~model.fixed)
+    poi_index = model.parameter_index(model.poi_name)
+    poi_locations = np.flatnonzero(free == poi_index)
+    if poi_locations.size != 1:
+        raise ValueError("The parameter of interest must be free for a toy test")
+    poi_local = int(poi_locations[0])
+
+    variances = model.nominal_expected
+    design = model.response[:, free]
+    precision = model.constraint_precision[free]
+    information = design.T @ (design / variances[:, np.newaxis])
+    information += np.diag(precision)
+    rank = np.linalg.matrix_rank(information)
+    if rank < free.size:
+        raise NonIdentifiableModel(
+            f"Free model parameters are not identifiable "
+            f"(information rank {rank} < {free.size})"
+        )
+
+    poi_unit = np.zeros(free.size)
+    poi_unit[poi_local] = 1.0
+    poi_covariance_column = np.linalg.solve(information, poi_unit)
+    poi_variance = float(poi_covariance_column[poi_local])
+    if not np.isfinite(poi_variance) or poi_variance <= 0.0:
+        raise NonIdentifiableModel(
+            "The parameter-of-interest variance is not finite and positive"
+        )
+
+    data_weights = (
+        design @ poi_covariance_column
+    ) / variances
+    auxiliary_weights = precision * poi_covariance_column
+    estimates = (
+        model.initial[poi_index]
+        + (observed - model.nominal_expected) @ data_weights
+        + (
+            auxdata[:, free] - model.initial[free]
+        ) @ auxiliary_weights
+    )
+    return np.asarray(estimates, dtype=float), poi_variance
+
+
+def _nominal_test_statistics(
+    model: Model,
+    poi_test: float,
+    observations: NDArray[np.floating] | NDArray[np.integer],
+    auxiliary: NDArray[np.floating],
+    *,
+    test_stat: TestStatistic,
+) -> FloatArray:
+    """Vectorized Wald-equivalent statistics for the nominal quadratic model."""
+
+    estimates, poi_variance = _nominal_poi_estimates(
+        model,
+        observations,
+        auxiliary,
+    )
+    if test_stat == "q0":
+        if poi_test != 0.0:
+            raise ValueError("q0 requires poi_test=0")
+        statistics = np.where(
+            estimates >= 0.0,
+            np.square(estimates) / poi_variance,
+            0.0,
+        )
+    elif test_stat == "q":
+        statistics = np.where(
+            estimates <= poi_test,
+            np.square(poi_test - estimates) / poi_variance,
+            0.0,
+        )
+    elif test_stat == "qtilde":
+        poi_index = model.parameter_index(model.poi_name)
+        if model.lower_bounds[poi_index] != 0.0:
+            raise ValueError("qtilde requires the POI lower bound to be zero")
+        statistics = np.where(
+            estimates > poi_test,
+            0.0,
+            np.where(
+                estimates >= 0.0,
+                np.square(poi_test - estimates) / poi_variance,
+                (poi_test**2 - 2.0 * poi_test * estimates) / poi_variance,
+            ),
+        )
+    else:
+        raise ValueError("test_stat must be 'q0', 'q', or 'qtilde'")
+    return np.maximum(np.asarray(statistics, dtype=float), 0.0)
+
+
+def _toy_statistics(
+    model: Model,
+    poi_test: float,
+    toys: ToyResult,
+    *,
+    test_stat: TestStatistic,
+    variance: Variance,
+) -> FloatArray:
+    if variance == "nominal":
+        return _nominal_test_statistics(
+            model,
+            poi_test,
+            toys.observations,
+            toys.auxiliary,
+            test_stat=test_stat,
+        )
+    statistics = np.empty(toys.observations.shape[0])
+    for index in range(statistics.size):
+        statistics[index] = _profile_statistic(
+            model,
+            poi_test,
+            toys.observations[index],
+            auxdata=toys.auxiliary[index],
+            test_stat=test_stat,
+            variance=variance,
+        )[0]
+    return statistics
+
+
+def _conditional_fit(
+    model: Model,
+    observed: FloatArray,
+    poi_value: float,
+    *,
+    variance: Variance,
+) -> FitResult:
+    poi_index = model.parameter_index(model.poi_name)
+    return model.fit(
+        observed,
+        fixed={model.poi_name: poi_value},
+        bounds={
+            model.poi_name: (
+                min(float(model.lower_bounds[poi_index]), poi_value),
+                max(float(model.upper_bounds[poi_index]), poi_value),
+            )
+        },
+        variance=variance,
+    )
+
+
+def _toy_discovery(
+    model: Model,
+    observed: FloatArray,
+    *,
+    variance: Variance,
+    ntoys: int,
+    sampling: Literal["poisson", "gaussian"],
+    generator: np.random.Generator,
+) -> ToyDiscoveryTestResult:
+    _, free_fit, fixed_fit = _profile_statistic(
+        model,
+        0.0,
+        observed,
+        auxdata=None,
+        test_stat="q0",
+        variance=variance,
+    )
+    alternative_fit = _conditional_fit(
+        model,
+        observed,
+        1.0,
+        variance=variance,
+    )
+    null_toys = generate_toys(
+        model,
+        ntoys,
+        parameters=fixed_fit,
+        sampling=sampling,
+        rng=generator,
+    )
+    alternative_toys = generate_toys(
+        model,
+        ntoys,
+        parameters=alternative_fit,
+        sampling=sampling,
+        rng=generator,
+    )
+    null_statistics = _toy_statistics(
+        model,
+        0.0,
+        null_toys,
+        test_stat="q0",
+        variance=variance,
+    )
+    alternative_statistics = _toy_statistics(
+        model,
+        0.0,
+        alternative_toys,
+        test_stat="q0",
+        variance=variance,
+    )
+    if variance == "nominal":
+        observed_q = float(
+            _nominal_test_statistics(
+                model,
+                0.0,
+                observed,
+                model.constraint_mean,
+                test_stat="q0",
+            )[0]
+        )
+    else:
+        observed_q = max(0.0, fixed_fit.chi2 - free_fit.chi2)
+
+    sorted_null = np.sort(null_statistics)
+    p0 = _tail_probability(sorted_null, observed_q)
+    alternative_p0 = _tail_probabilities(
+        sorted_null,
+        alternative_statistics,
+    )
+    expected_p0 = tuple(
+        float(value)
+        for value in np.percentile(
+            alternative_p0,
+            [2.27501319, 15.86552539, 50.0, 84.13447461, 97.72498681],
+        )
+    )
+    expected_significance = tuple(
+        float(value)
+        for value in np.maximum(norm.isf(expected_p0), 0.0)
+    )
+    return ToyDiscoveryTestResult(
+        poi_test=0.0,
+        test_stat="q0",
+        q=observed_q,
+        p0=p0,
+        significance=float(max(norm.isf(p0), 0.0)),
+        expected_p0=expected_p0,  # type: ignore[arg-type]
+        expected_significance=expected_significance,  # type: ignore[arg-type]
+        ntoys=ntoys,
+        variance=variance,
+        null_statistics=null_statistics,
+        alternative_statistics=alternative_statistics,
+        free_fit=free_fit,
+        fixed_fit=fixed_fit,
+        alternative_fit=alternative_fit,
+    )
+
+
 def toy_hypotest(
     model: Model,
     poi_test: float,
     data: Sequence[float] | Mapping[str, Sequence[float]] | None = None,
     *,
     test_stat: TestStatistic = "qtilde",
-    variance: Variance = "iterated",
+    variance: Variance = "nominal",
     ntoys: int = 10_000,
     sampling: Literal["poisson", "gaussian"] = "poisson",
     rng: int | np.random.Generator | None = None,
-) -> ToyHypothesisTestResult:
-    """Run an exclusion test with generated pseudo-experiments."""
+) -> ToyHypothesisTestResult | ToyDiscoveryTestResult:
+    """Run a vectorized discovery or exclusion pseudo-experiment test."""
 
     if test_stat not in {"q0", "q", "qtilde"}:
         raise ValueError("test_stat must be 'q0', 'q', or 'qtilde'")
-    if test_stat == "q0":
-        raise NotImplementedError(
-            "Toy-based q0 discovery tests are not implemented; "
-            "use calculator='asymptotic'"
-        )
+    poi_test = float(poi_test)
+    if not np.isfinite(poi_test):
+        raise ValueError("poi_test must be finite")
+    if test_stat == "q0" and poi_test != 0.0:
+        raise ValueError("q0 requires poi_test=0")
+    if variance not in {"iterated", "nominal"}:
+        raise ValueError("variance must be 'iterated' or 'nominal'")
+    if isinstance(ntoys, bool) or not isinstance(ntoys, (int, np.integer)):
+        raise TypeError("ntoys must be an integer")
     if ntoys <= 0:
         raise ValueError("ntoys must be positive")
+    ntoys = int(ntoys)
     observed = _data_array(model, data)
+    generator = _rng(rng)
+    if test_stat == "q0":
+        return _toy_discovery(
+            model,
+            observed,
+            variance=variance,
+            ntoys=ntoys,
+            sampling=sampling,
+            generator=generator,
+        )
+
     q, free_fit, fixed_fit = _profile_statistic(
         model,
-        float(poi_test),
+        poi_test,
         observed,
         auxdata=None,
         test_stat=test_stat,
@@ -165,7 +472,6 @@ def toy_hypotest(
         fixed={model.poi_name: 0.0},
         variance=variance,
     )
-    generator = _rng(rng)
     sb_toys = generate_toys(
         model,
         ntoys,
@@ -180,26 +486,30 @@ def toy_hypotest(
         sampling=sampling,
         rng=generator,
     )
-
-    sb_statistics = np.empty(ntoys)
-    b_statistics = np.empty(ntoys)
-    for index in range(ntoys):
-        sb_statistics[index] = _profile_statistic(
-            model,
-            float(poi_test),
-            sb_toys.observations[index],
-            auxdata=sb_toys.auxiliary[index],
-            test_stat=test_stat,
-            variance=variance,
-        )[0]
-        b_statistics[index] = _profile_statistic(
-            model,
-            float(poi_test),
-            b_toys.observations[index],
-            auxdata=b_toys.auxiliary[index],
-            test_stat=test_stat,
-            variance=variance,
-        )[0]
+    if variance == "nominal":
+        q = float(
+            _nominal_test_statistics(
+                model,
+                poi_test,
+                observed,
+                model.constraint_mean,
+                test_stat=test_stat,
+            )[0]
+        )
+    sb_statistics = _toy_statistics(
+        model,
+        poi_test,
+        sb_toys,
+        test_stat=test_stat,
+        variance=variance,
+    )
+    b_statistics = _toy_statistics(
+        model,
+        poi_test,
+        b_toys,
+        test_stat=test_stat,
+        variance=variance,
+    )
 
     sorted_sb = np.sort(sb_statistics)
     sorted_b = np.sort(b_statistics)
@@ -226,6 +536,7 @@ def toy_hypotest(
         cls=clsb / clb,
         expected_cls=expected_cls,  # type: ignore[arg-type]
         ntoys=ntoys,
+        variance=variance,
         sb_statistics=sb_statistics,
         b_statistics=b_statistics,
         free_fit=free_fit,

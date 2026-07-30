@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from scipy.stats import norm, poisson
 
 import sghf
+import sghf.toys as toy_module
 
 
 def counting_workspace(*, constrained: bool = False) -> dict:
@@ -120,13 +122,107 @@ def test_toy_hypotest_is_reproducible_and_uses_smoothed_pvalues() -> None:
     assert 0.0 < first.clb <= 1.0
     assert first.cls == pytest.approx(first.clsb / first.clb)
     assert len(first.expected_cls) == 5
+    assert first.variance == "nominal"
+    assert first.q == pytest.approx(
+        model.hypotest(1.0, test_stat="qtilde", variance="nominal").q
+    )
 
 
-def test_toy_hypotest_rejects_discovery_statistic() -> None:
+def test_toy_q0_returns_empirical_discovery_result() -> None:
+    workspace = counting_workspace()
+    workspace["observations"][0]["data"] = [45.0]
+    model = sghf.load(workspace)
+
+    result = model.hypotest(
+        0.0,
+        calculator="toys",
+        test_stat="q0",
+        ntoys=20_000,
+        rng=23,
+    )
+
+    assert isinstance(result, sghf.ToyDiscoveryTestResult)
+    assert result.test_stat == "q0"
+    assert result.variance == "nominal"
+    assert result.q == pytest.approx(
+        model.hypotest(0.0, test_stat="q0", variance="nominal").q
+    )
+    expected_p0 = (
+        np.count_nonzero(result.null_statistics >= result.q) + 1
+    ) / (result.ntoys + 1)
+    assert result.p0 == pytest.approx(expected_p0)
+    assert result.p0 == pytest.approx(poisson.sf(44, 40), abs=0.015)
+    assert result.significance == pytest.approx(norm.isf(result.p0))
+    assert len(result.expected_p0) == 5
+    assert len(result.expected_significance) == 5
+    assert result.null_statistics.shape == (20_000,)
+    assert result.alternative_statistics.shape == (20_000,)
+
+
+def test_toy_q0_vectorizes_profile_statistics(monkeypatch) -> None:
     model = sghf.load(counting_workspace())
+    calls = 0
+    original = toy_module._profile_statistic
 
-    with pytest.raises(NotImplementedError, match="q0"):
-        model.hypotest(0.0, calculator="toys", test_stat="q0", ntoys=10)
+    def counted_profile_statistic(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        toy_module,
+        "_profile_statistic",
+        counted_profile_statistic,
+    )
+
+    model.hypotest(
+        0.0,
+        calculator="toys",
+        test_stat="q0",
+        ntoys=1_000,
+        rng=5,
+    )
+
+    assert calls <= 1
+
+
+@pytest.mark.parametrize(
+    ("test_stat", "poi_test"),
+    [("q0", 0.0), ("q", 1.0), ("qtilde", 1.0)],
+)
+def test_vectorized_nominal_statistics_match_profile_fits(
+    test_stat: str,
+    poi_test: float,
+) -> None:
+    model = sghf.load(counting_workspace())
+    observations = np.array([[30.0], [40.0], [45.0], [60.0]])
+    auxiliary = np.broadcast_to(
+        model.constraint_mean,
+        (observations.shape[0], model.initial.size),
+    )
+
+    vectorized = toy_module._nominal_test_statistics(
+        model,
+        poi_test,
+        observations,
+        auxiliary,
+        test_stat=test_stat,
+    )
+    profiled = np.array(
+        [
+            toy_module._profile_statistic(
+                model,
+                poi_test,
+                observation,
+                auxdata=auxdata,
+                test_stat=test_stat,
+                variance="nominal",
+            )[0]
+            for observation, auxdata in zip(observations, auxiliary)
+        ]
+    )
+
+    np.testing.assert_allclose(vectorized, profiled, atol=1.0e-12)
 
 
 def test_toys_require_positive_size() -> None:

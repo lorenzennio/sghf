@@ -131,7 +131,7 @@ class Model:
         *,
         test_stat: Literal["q0", "q", "qtilde"] = "qtilde",
         calculator: Literal["asymptotic", "toys"] = "asymptotic",
-        variance: Literal["iterated", "nominal"] = "iterated",
+        variance: Literal["iterated", "nominal"] | None = None,
         ntoys: int = 10_000,
         sampling: Literal["poisson", "gaussian"] = "poisson",
         rng: int | np.random.Generator | None = None,
@@ -146,7 +146,7 @@ class Model:
                 poi_test,
                 data=data,
                 test_stat=test_stat,
-                variance=variance,
+                variance="iterated" if variance is None else variance,
             )
         if calculator == "toys":
             from .toys import toy_hypotest
@@ -156,7 +156,7 @@ class Model:
                 poi_test,
                 data=data,
                 test_stat=test_stat,
-                variance=variance,
+                variance="nominal" if variance is None else variance,
                 ntoys=ntoys,
                 sampling=sampling,
                 rng=rng,

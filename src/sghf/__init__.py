@@ -17,7 +17,11 @@ from .exceptions import (
 from .asymptotic import HypothesisTestResult, LimitResult
 from .fit import FitResult
 from .model import ApproximationReport, Model
-from .toys import ToyHypothesisTestResult, ToyResult
+from .toys import (
+    ToyDiscoveryTestResult,
+    ToyHypothesisTestResult,
+    ToyResult,
+)
 from .workspace import load
 
 __version__ = "0.1.0"
@@ -70,6 +74,7 @@ __all__ = [
     "NonIdentifiableModel",
     "SGHFUsageError",
     "UnsupportedModifier",
+    "ToyDiscoveryTestResult",
     "ToyHypothesisTestResult",
     "ToyResult",
     "WorkspaceWarning",
