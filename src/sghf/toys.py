@@ -140,12 +140,15 @@ def toy_hypotest(
     sampling: Literal["poisson", "gaussian"] = "poisson",
     rng: int | np.random.Generator | None = None,
 ) -> ToyHypothesisTestResult:
-    """Run a conditional frequentist test with generated pseudo-experiments."""
+    """Run an exclusion test with generated pseudo-experiments."""
 
-    if test_stat == "q0" and poi_test != 0.0:
-        raise ValueError("q0 requires poi_test=0")
     if test_stat not in {"q0", "q", "qtilde"}:
         raise ValueError("test_stat must be 'q0', 'q', or 'qtilde'")
+    if test_stat == "q0":
+        raise NotImplementedError(
+            "Toy-based q0 discovery tests are not implemented; "
+            "use calculator='asymptotic'"
+        )
     if ntoys <= 0:
         raise ValueError("ntoys must be positive")
     observed = _data_array(model, data)

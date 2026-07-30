@@ -116,7 +116,9 @@ Poisson sampling is the default; Gaussian main-measurement sampling is also
 available and can produce negative pseudo-observations, which the quadratic
 fitter accepts without clipping. Constrained parameters receive independently
 fluctuated Gaussian auxiliary measurements. Supplying an integer seed makes the
-generated samples and toy-based result reproducible.
+generated samples and toy-based result reproducible. Toy-based inference
+supports the exclusion statistics `q` and `qtilde`; use the asymptotic
+calculator for `q0` discovery tests.
 
 ## Workspace compatibility
 

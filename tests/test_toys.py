@@ -122,6 +122,13 @@ def test_toy_hypotest_is_reproducible_and_uses_smoothed_pvalues() -> None:
     assert len(first.expected_cls) == 5
 
 
+def test_toy_hypotest_rejects_discovery_statistic() -> None:
+    model = sghf.load(counting_workspace())
+
+    with pytest.raises(NotImplementedError, match="q0"):
+        model.hypotest(0.0, calculator="toys", test_stat="q0", ntoys=10)
+
+
 def test_toys_require_positive_size() -> None:
     with pytest.raises(ValueError, match="positive"):
         sghf.load(counting_workspace()).toys(0)
