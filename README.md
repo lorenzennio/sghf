@@ -158,11 +158,15 @@ python -m build
 ```
 
 The benchmark script compares repeated SGHF and pyhf fit latency on a supplied
-workspace without claiming a universal speedup:
+workspace without claiming a universal speedup. For small models, fix the BLAS
+thread count so thread-pool overhead does not dominate the comparison:
 
 ```console
-python benchmarks/benchmark_fit.py workspace.json --repeats 20
+OPENBLAS_NUM_THREADS=1 python benchmarks/benchmark_fit.py workspace.json --repeats 20
 ```
+
+Use the equivalent setting for a different BLAS implementation and report the
+thread count with benchmark results.
 
 ## Credits and license
 
