@@ -25,6 +25,38 @@ python -m pip install .
 
 Python 3.10 or newer is required.
 
+## Agent skill
+
+SGHF ships an agent skill covering the whole API, the approximation's validity
+boundary, and the behaviours that are counterintuitive but correct. It lives at
+`skills/sghf/` and is the same payload however you install it.
+
+For agent frameworks with a plugin system, install from the repository, which
+serves as its own marketplace:
+
+```console
+# Claude Code
+/plugin marketplace add lorenzennio/sghf
+/plugin install sghf
+```
+
+Codex, Cursor and Gemini CLI read `.codex-plugin/`, `.cursor-plugin/` and
+`gemini-extension.json` from the same checkout.
+
+Otherwise install it from the Python package. Installing a wheel cannot place
+files outside the environment, so this is a separate one-off command:
+
+```console
+python -m pip install sghf
+sghf-install-skills
+```
+
+That writes the skill once to `~/.agents/skills/sghf/`, which Codex, Copilot CLI
+and Gemini CLI read directly, and symlinks it into the private skills directory
+of any other framework it detects, such as Claude Code's `~/.claude/skills/`.
+Use `--list` to preview, `--force` to replace an existing install, and `--dest`
+to choose a different canonical directory.
+
 ## Quick start
 
 ```python

@@ -1,0 +1,24 @@
+{
+  "name": "sghf",
+  "version": "0.1.0",
+  "description": "Agent skill for SGHF: fast linear-Gaussian fits, profile tests, CLs upper limits and vectorized toys on pyhf/HistFactory workspaces.",
+  "author": {
+    "name": "Lorenz Gaertner",
+    "email": "lorenz.gaertner@physik.uni-muenchen.de"
+  },
+  "homepage": "https://github.com/lorenzennio/sghf",
+  "repository": "https://github.com/lorenzennio/sghf",
+  "license": "MIT",
+  "keywords": [
+    "sghf",
+    "pyhf",
+    "histfactory",
+    "statistics",
+    "inference",
+    "upper-limit",
+    "cls",
+    "toys",
+    "physics"
+  ],
+  "skills": "./skills/"
+}

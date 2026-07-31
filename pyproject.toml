@@ -39,6 +39,9 @@ test = [
   "pyhf==0.7.6",
 ]
 
+[project.scripts]
+sghf-install-skills = "sghf._install_skills:main"
+
 [project.urls]
 Documentation = "https://github.com/lorenzennio/sghf#readme"
 Issues = "https://github.com/lorenzennio/sghf/issues"
@@ -46,6 +49,12 @@ Source = "https://github.com/lorenzennio/sghf"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sghf"]
+
+# The agent skill has one source of truth at the repository root, where the
+# per-runtime plugin manifests point. Ship the same tree inside the wheel so
+# `sghf-install-skills` works for users who only ever pip install.
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "sghf/_skills"
 
 [tool.pytest.ini_options]
 addopts = "-ra"

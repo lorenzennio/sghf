@@ -1,0 +1,19 @@
+{
+  "name": "sghf",
+  "interface": {
+    "displayName": "SGHF"
+  },
+  "plugins": [
+    {
+      "name": "sghf",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
