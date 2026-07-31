@@ -268,3 +268,85 @@ def test_both_calculators_share_the_default_variance() -> None:
 
     assert asymptotic.q == pytest.approx(toys.q)
     assert toys.variance == "nominal"
+
+
+def limit_workspace() -> dict:
+    workspace = counting_workspace()
+    workspace["observations"][0]["data"] = [45.0]
+    return workspace
+
+
+def test_toy_upper_limit_brackets_the_asymptotic_result() -> None:
+    model = sghf.load(limit_workspace())
+
+    asymptotic = model.upper_limit()
+    toys = model.upper_limit(calculator="toys", ntoys=20_000, rng=5)
+
+    assert toys.calculator == "toys"
+    assert toys.level == asymptotic.level
+    assert toys.test_stat == asymptotic.test_stat
+    # The two calculators answer the same question; on a well-behaved counting
+    # model they should agree to within the Monte Carlo resolution.
+    assert toys.observed == pytest.approx(asymptotic.observed, rel=0.1)
+    for toy_limit, asymptotic_limit in zip(toys.expected, asymptotic.expected):
+        assert toy_limit == pytest.approx(asymptotic_limit, rel=0.15)
+    assert list(toys.expected) == sorted(toys.expected)
+
+
+def test_toy_upper_limit_scans_a_grid_and_reports_it() -> None:
+    model = sghf.load(limit_workspace())
+
+    toys = model.upper_limit(
+        calculator="toys",
+        scan=np.linspace(0.5, 6.0, 12),
+        ntoys=5_000,
+        rng=11,
+        keep_results=True,
+    )
+
+    assert len(toys.scan_values) == 12
+    np.testing.assert_allclose(toys.scan_values, np.linspace(0.5, 6.0, 12))
+    assert toys.bracket == (0.5, 6.0)
+    assert [result.poi_test for result in toys.results] == list(toys.scan_values)
+    assert all(
+        isinstance(result, sghf.ToyHypothesisTestResult)
+        for result in toys.results
+    )
+
+
+def test_toy_upper_limit_omits_results_by_default() -> None:
+    model = sghf.load(limit_workspace())
+
+    toys = model.upper_limit(
+        calculator="toys",
+        scan=np.linspace(0.5, 6.0, 6),
+        ntoys=2_000,
+        rng=3,
+    )
+
+    assert toys.results == ()
+    assert toys.scan_values
+
+
+def test_toy_upper_limit_reports_a_missing_crossing() -> None:
+    model = sghf.load(limit_workspace())
+
+    with pytest.raises(sghf.LimitNotFound, match="observed"):
+        model.upper_limit(
+            calculator="toys",
+            scan=np.linspace(0.0, 0.2, 5),
+            ntoys=2_000,
+            rng=3,
+        )
+
+
+def test_toy_upper_limit_rejects_a_degenerate_scan() -> None:
+    model = sghf.load(limit_workspace())
+
+    with pytest.raises(ValueError, match="two distinct values"):
+        model.upper_limit(calculator="toys", scan=[1.0], ntoys=100)
+
+
+def test_upper_limit_rejects_an_unknown_calculator() -> None:
+    with pytest.raises(ValueError, match="calculator"):
+        sghf.load(limit_workspace()).upper_limit(calculator="magic")

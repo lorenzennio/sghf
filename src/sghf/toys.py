@@ -8,8 +8,14 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import norm
 
-from .asymptotic import TestStatistic, Variance, _profile_statistic
-from .exceptions import NonIdentifiableModel
+from .asymptotic import (
+    LimitResult,
+    TestStatistic,
+    Variance,
+    _profile_statistic,
+    upper_limit,
+)
+from .exceptions import LimitNotFound, NonIdentifiableModel
 from .fit import FitResult, _data_array
 
 if TYPE_CHECKING:
@@ -595,4 +601,168 @@ def toy_hypotest(
         b_statistics=b_statistics,
         free_fit=free_fit,
         fixed_fit=fixed_fit,
+    )
+
+
+_CURVE_NAMES = (
+    "observed",
+    "-2 sigma expected",
+    "-1 sigma expected",
+    "median expected",
+    "+1 sigma expected",
+    "+2 sigma expected",
+)
+
+
+def _interpolated_crossing(
+    poi_values: FloatArray,
+    cls_values: FloatArray,
+    level: float,
+) -> float | None:
+    """Locate the last downward crossing of ``level``, linear in log CLs.
+
+    Toy CLs curves are stochastic and need not decrease monotonically, so a
+    root finder cannot be used and several crossings may exist. Taking the
+    last one keeps the reported limit on the conservative side.
+    """
+
+    above = cls_values > level
+    transitions = np.flatnonzero(above[:-1] & ~above[1:])
+    if transitions.size == 0:
+        return None
+    index = int(transitions[-1])
+    low, high = float(poi_values[index]), float(poi_values[index + 1])
+    # The corrected tail fractions are strictly positive, so the logarithms
+    # are always finite.
+    log_low = np.log(cls_values[index])
+    log_high = np.log(cls_values[index + 1])
+    if log_low == log_high:
+        return high
+    weight = (np.log(level) - log_low) / (log_high - log_low)
+    return float(low + weight * (high - low))
+
+
+def _scan_values(
+    model: Model,
+    data: Sequence[float] | Mapping[str, Sequence[float]] | None,
+    *,
+    level: float,
+    test_stat: Literal["q", "qtilde"],
+    variance: Variance,
+    bracket: tuple[float, float] | None,
+    scan: Sequence[float] | None,
+    points: int,
+) -> FloatArray:
+    """Resolve the POI grid the toy scan will evaluate."""
+
+    if scan is not None:
+        values = np.unique(np.asarray(scan, dtype=float))
+        if values.size < 2:
+            raise ValueError("scan must contain at least two distinct values")
+        if not np.all(np.isfinite(values)):
+            raise ValueError("scan values must be finite")
+        return values
+    if isinstance(points, bool) or not isinstance(points, (int, np.integer)):
+        raise TypeError("points must be an integer")
+    if points < 2:
+        raise ValueError("points must be at least two")
+    poi_index = model.parameter_index(model.poi_name)
+    floor = max(0.0, float(model.lower_bounds[poi_index]))
+    if bracket is not None:
+        low, high = map(float, bracket)
+        if not np.isfinite(low) or not np.isfinite(high) or low >= high:
+            raise ValueError("bracket must contain two finite increasing values")
+    else:
+        # Seed the grid from the cheap asymptotic crossings so the toys are
+        # spent where the limits actually are.
+        seed = upper_limit(
+            model,
+            data,
+            level=level,
+            test_stat=test_stat,
+            variance=variance,
+        )
+        crossings = (seed.observed, *seed.expected)
+        low = max(floor, 0.7 * min(crossings))
+        high = 1.3 * max(crossings)
+    return np.linspace(low, high, int(points))
+
+
+def toy_upper_limit(
+    model: Model,
+    data: Sequence[float] | Mapping[str, Sequence[float]] | None = None,
+    *,
+    level: float = 0.05,
+    test_stat: Literal["q", "qtilde"] = "qtilde",
+    variance: Variance = "nominal",
+    bracket: tuple[float, float] | None = None,
+    scan: Sequence[float] | None = None,
+    points: int = 21,
+    ntoys: int = 10_000,
+    batch_size: int | None = None,
+    sampling: Literal["poisson", "gaussian"] = "poisson",
+    rng: int | np.random.Generator | None = None,
+    keep_results: bool = False,
+) -> LimitResult:
+    """Find CLs upper-limit crossings by scanning toy hypothesis tests.
+
+    The toy CLs curve is stochastic, so this scans a fixed grid and
+    interpolates rather than driving a root finder onto Monte Carlo noise.
+    """
+
+    if not 0.0 < level < 1.0:
+        raise ValueError("level must lie strictly between zero and one")
+    if test_stat not in {"q", "qtilde"}:
+        raise ValueError("test_stat must be 'q' or 'qtilde'")
+    poi_values = _scan_values(
+        model,
+        data,
+        level=level,
+        test_stat=test_stat,
+        variance=variance,
+        bracket=bracket,
+        scan=scan,
+        points=points,
+    )
+    generator = _rng(rng)
+    results = tuple(
+        toy_hypotest(
+            model,
+            float(value),
+            data,
+            test_stat=test_stat,
+            variance=variance,
+            ntoys=ntoys,
+            batch_size=batch_size,
+            sampling=sampling,
+            rng=generator,
+        )
+        for value in poi_values
+    )
+
+    curves = np.empty((6, poi_values.size))
+    for index, result in enumerate(results):
+        curves[0, index] = result.cls
+        curves[1:, index] = result.expected_cls
+
+    limits: list[float] = []
+    for curve, name in zip(curves, _CURVE_NAMES):
+        crossing = _interpolated_crossing(poi_values, curve, level)
+        if crossing is None:
+            raise LimitNotFound(
+                f"No CLs={level:g} crossing for the {name} curve over the "
+                f"scanned range ({poi_values[0]:g}, {poi_values[-1]:g}); "
+                f"CLs spans [{curve.min():g}, {curve.max():g}]"
+            )
+        limits.append(crossing)
+
+    return LimitResult(
+        observed=limits[0],
+        expected=tuple(limits[1:]),  # type: ignore[arg-type]
+        level=level,
+        test_stat=test_stat,
+        bracket=(float(poi_values[0]), float(poi_values[-1])),
+        calculator="toys",
+        scan_values=tuple(float(value) for value in poi_values),
+        results=results if keep_results else (),
     )

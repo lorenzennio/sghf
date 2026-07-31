@@ -13,6 +13,7 @@ from .fit import FitResult, _data_array
 
 if TYPE_CHECKING:
     from .model import Model
+    from .toys import ToyHypothesisTestResult
 
 
 TestStatistic = Literal["q0", "q", "qtilde"]
@@ -41,23 +42,27 @@ class HypothesisTestResult:
 
 @dataclass(frozen=True)
 class LimitResult:
-    """Observed and expected asymptotic upper limits."""
+    """Observed and expected $CL_s$ upper limits."""
 
     observed: float
     expected: tuple[float, float, float, float, float]
     level: float
     test_stat: Literal["q", "qtilde"]
     bracket: tuple[float, float]
-    results: tuple[HypothesisTestResult, ...] = ()
+    calculator: Literal["asymptotic", "toys"] = "asymptotic"
+    scan_values: tuple[float, ...] = ()
+    """POI values the toy calculator scanned; empty for the asymptotic one."""
+    results: tuple[HypothesisTestResult | ToyHypothesisTestResult, ...] = ()
     """Every test evaluated while locating the crossings, sorted by POI value.
 
     Populated only when ``keep_results=True``, since retaining these also
     retains their fits.
 
-    These are the points the bracket expansion and root finder happened to
-    visit, not a regular scan: they cluster tightly around each crossing and
-    leave wide gaps between them. Useful for plotting and diagnostics, but do
-    not read the spacing as structure.
+    For ``calculator="toys"`` these are the scanned grid points. For
+    ``calculator="asymptotic"`` they are wherever the bracket expansion and
+    root finder happened to look: they cluster tightly around each crossing
+    and leave wide gaps between them, so do not read the spacing as
+    structure.
     """
 
 
@@ -293,6 +298,7 @@ def upper_limit(
         level=level,
         test_stat=test_stat,
         bracket=(low, high),
+        calculator="asymptotic",
         results=(
             tuple(cache[key] for key in sorted(cache)) if keep_results else ()
         ),

@@ -193,20 +193,47 @@ class Model:
         *,
         level: float = 0.05,
         test_stat: Literal["q", "qtilde"] = "qtilde",
+        calculator: Literal["asymptotic", "toys"] = "asymptotic",
         variance: Literal["iterated", "nominal"] = "nominal",
         bracket: tuple[float, float] | None = None,
+        scan: Sequence[float] | None = None,
+        points: int = 21,
+        ntoys: int = 10_000,
+        batch_size: int | None = None,
+        sampling: Literal["poisson", "gaussian"] = "poisson",
+        rng: int | np.random.Generator | None = None,
         keep_results: bool = False,
     ):
-        """Calculate observed and expected asymptotic upper limits."""
+        """Calculate observed and expected CLs upper limits."""
 
-        from .asymptotic import upper_limit
+        if calculator == "asymptotic":
+            from .asymptotic import upper_limit
 
-        return upper_limit(
-            self,
-            data=data,
-            level=level,
-            test_stat=test_stat,
-            variance=variance,
-            bracket=bracket,
-            keep_results=keep_results,
-        )
+            return upper_limit(
+                self,
+                data=data,
+                level=level,
+                test_stat=test_stat,
+                variance=variance,
+                bracket=bracket,
+                keep_results=keep_results,
+            )
+        if calculator == "toys":
+            from .toys import toy_upper_limit
+
+            return toy_upper_limit(
+                self,
+                data=data,
+                level=level,
+                test_stat=test_stat,
+                variance=variance,
+                bracket=bracket,
+                scan=scan,
+                points=points,
+                ntoys=ntoys,
+                batch_size=batch_size,
+                sampling=sampling,
+                rng=rng,
+                keep_results=keep_results,
+            )
+        raise ValueError("calculator must be 'asymptotic' or 'toys'")
