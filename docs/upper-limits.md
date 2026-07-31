@@ -150,6 +150,46 @@ The immutable result contains:
 | `level` | requested $\alpha$ |
 | `test_stat` | `"q"` or `"qtilde"` |
 | `bracket` | final bracket used for all six solves, including automatic expansion |
+| `results` | every `HypothesisTestResult` evaluated, sorted by `poi_test` |
+
+### Plotting the evaluated curve
+
+`results` costs nothing extra: it is the set of tests the bracket expansion
+and the six root finds already required. Each entry is a full
+`HypothesisTestResult`, so the observed curve, the expected band, and the
+underlying statistics are all available.
+
+```python
+import numpy as np
+
+limit = model.upper_limit()
+
+poi = np.array([test.poi_test for test in limit.results])
+observed = np.array([test.cls for test in limit.results])
+band = np.array([test.expected_cls for test in limit.results])
+
+plt.plot(poi, observed, label="observed")
+plt.fill_between(poi, band[:, 0], band[:, 4], alpha=0.3)
+plt.plot(poi, band[:, 2], linestyle="--", label="expected")
+plt.axhline(limit.level, color="red")
+```
+
+These points are where the solver chose to look, not an even scan. Brent's
+method clusters them tightly around each of the six crossings and skips the
+intervals between, so the sampling density is highly non-uniform and the
+gaps carry no meaning. On a 232-parameter workspace a default solve visited
+60 values of $\mu$ whose spacing ranged from $5\times10^{-15}$ to $2$.
+
+Do not read structure into that spacing, and do not use these points to
+integrate or to locate a crossing other than the six already reported. When
+an evenly sampled curve is required, call `Model.hypotest` over a grid of
+your own choosing and accept the extra cost.
+
+Retaining a `LimitResult` retains every fit it evaluated. Each
+`HypothesisTestResult` carries four `FitResult` objects, so on a
+232-parameter workspace the 60 retained results held roughly 200 MiB. Peak
+memory during the solve is unchanged, since these objects already existed;
+what changes is that they stay alive as long as the result does.
 
 ## Failures
 

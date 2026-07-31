@@ -389,6 +389,11 @@ fit[name] -> float
 | `level` | `float` |
 | `test_stat` | `"q"` or `"qtilde"` |
 | `bracket` | two-float tuple |
+| `results` | tuple of `HypothesisTestResult`, sorted by `poi_test` |
+
+`results` holds every test evaluated while locating the crossings. It is a
+byproduct of the solve, not a regular scan; see
+[upper limits](upper-limits.md).
 
 ### `ToyResult`
 
