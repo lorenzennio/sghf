@@ -104,3 +104,28 @@ def test_upper_limit_expands_past_suggested_poi_bound() -> None:
 
     assert result.observed > 0.75
     assert result.bracket[1] > 0.75
+
+
+def test_upper_limit_returns_every_evaluated_hypotest() -> None:
+    model = sghf.load(counting_workspace())
+
+    result = model.upper_limit(variance="nominal")
+
+    assert result.results
+    poi_values = [test.poi_test for test in result.results]
+    assert poi_values == sorted(poi_values)
+    assert all(
+        result.bracket[0] <= value <= result.bracket[1] for value in poi_values
+    )
+    assert all(test.test_stat == result.test_stat for test in result.results)
+
+    # The crossings are what the root finder converged on, so each reported
+    # limit must appear among the evaluated points and sit at CLs == level.
+    for limit in (result.observed, *result.expected):
+        nearest = min(result.results, key=lambda t: abs(t.poi_test - limit))
+        assert nearest.poi_test == pytest.approx(limit, abs=1.0e-6)
+
+    observed_at_limit = min(
+        result.results, key=lambda t: abs(t.poi_test - result.observed)
+    )
+    assert observed_at_limit.cls == pytest.approx(result.level, abs=1.0e-6)

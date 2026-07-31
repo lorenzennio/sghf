@@ -48,6 +48,14 @@ class LimitResult:
     level: float
     test_stat: Literal["q", "qtilde"]
     bracket: tuple[float, float]
+    results: tuple[HypothesisTestResult, ...] = ()
+    """Every test evaluated while locating the crossings, sorted by POI value.
+
+    These are the points the bracket expansion and root finder happened to
+    visit, not a regular scan: they cluster tightly around each crossing and
+    leave wide gaps between them. Useful for plotting and diagnostics, but do
+    not read the spacing as structure.
+    """
 
 
 def _profile_statistic(
@@ -273,10 +281,13 @@ def upper_limit(
                 "20 expansions"
             )
 
+    observed = crossing(None)
+    expected = tuple(crossing(index) for index in range(5))
     return LimitResult(
-        observed=crossing(None),
-        expected=tuple(crossing(index) for index in range(5)),
+        observed=observed,
+        expected=expected,  # type: ignore[arg-type]
         level=level,
         test_stat=test_stat,
         bracket=(low, high),
+        results=tuple(cache[key] for key in sorted(cache)),
     )
