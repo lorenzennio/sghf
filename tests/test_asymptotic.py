@@ -109,7 +109,8 @@ def test_upper_limit_expands_past_suggested_poi_bound() -> None:
 def test_upper_limit_returns_every_evaluated_hypotest() -> None:
     model = sghf.load(counting_workspace())
 
-    result = model.upper_limit(variance="nominal")
+    assert model.upper_limit(variance="nominal").results == ()
+    result = model.upper_limit(variance="nominal", keep_results=True)
 
     assert result.results
     poi_values = [test.poi_test for test in result.results]

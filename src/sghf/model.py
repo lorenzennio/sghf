@@ -195,6 +195,7 @@ class Model:
         test_stat: Literal["q", "qtilde"] = "qtilde",
         variance: Literal["iterated", "nominal"] = "nominal",
         bracket: tuple[float, float] | None = None,
+        keep_results: bool = False,
     ):
         """Calculate observed and expected asymptotic upper limits."""
 
@@ -207,4 +208,5 @@ class Model:
             test_stat=test_stat,
             variance=variance,
             bracket=bracket,
+            keep_results=keep_results,
         )

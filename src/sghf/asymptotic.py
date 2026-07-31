@@ -51,6 +51,9 @@ class LimitResult:
     results: tuple[HypothesisTestResult, ...] = ()
     """Every test evaluated while locating the crossings, sorted by POI value.
 
+    Populated only when ``keep_results=True``, since retaining these also
+    retains their fits.
+
     These are the points the bracket expansion and root finder happened to
     visit, not a regular scan: they cluster tightly around each crossing and
     leave wide gaps between them. Useful for plotting and diagnostics, but do
@@ -221,6 +224,7 @@ def upper_limit(
     test_stat: Literal["q", "qtilde"] = "qtilde",
     variance: Variance = "nominal",
     bracket: tuple[float, float] | None = None,
+    keep_results: bool = False,
 ) -> LimitResult:
     """Find CLs upper-limit crossings with scalar root finding."""
 
@@ -289,5 +293,7 @@ def upper_limit(
         level=level,
         test_stat=test_stat,
         bracket=(low, high),
-        results=tuple(cache[key] for key in sorted(cache)),
+        results=(
+            tuple(cache[key] for key in sorted(cache)) if keep_results else ()
+        ),
     )
