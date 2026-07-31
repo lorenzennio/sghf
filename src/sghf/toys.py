@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 
 FloatArray = NDArray[np.float64]
 _MAX_TOY_BATCH_BYTES = 128 * 1024**2
+_BAND_PERCENTILES = (
+    2.27501319,
+    15.86552539,
+    50.0,
+    84.13447461,
+    97.72498681,
+)
 
 
 @dataclass(frozen=True)
@@ -148,23 +155,22 @@ def generate_toys(
     )
 
 
-def _tail_probability(sorted_statistics: FloatArray, value: float) -> float:
-    count = sorted_statistics.size - np.searchsorted(
-        sorted_statistics, value, side="left"
-    )
-    return float((count + 1) / (sorted_statistics.size + 1))
-
-
 def _tail_probabilities(
     sorted_statistics: FloatArray,
     values: FloatArray,
 ) -> FloatArray:
+    """Corrected upper-tail fractions ``P(statistic >= value)``."""
+
     counts = sorted_statistics.size - np.searchsorted(
         sorted_statistics,
         values,
         side="left",
     )
     return (counts + 1) / (sorted_statistics.size + 1)
+
+
+def _tail_probability(sorted_statistics: FloatArray, value: float) -> float:
+    return float(_tail_probabilities(sorted_statistics, np.asarray(value)))
 
 
 def _nominal_poi_estimates(
@@ -446,7 +452,7 @@ def _toy_discovery(
         float(value)
         for value in np.percentile(
             alternative_p0,
-            [2.27501319, 15.86552539, 50.0, 84.13447461, 97.72498681],
+            _BAND_PERCENTILES,
         )
     )
     expected_significance = tuple(
@@ -571,7 +577,7 @@ def toy_hypotest(
         float(value)
         for value in np.percentile(
             toy_cls,
-            [2.27501319, 15.86552539, 50.0, 84.13447461, 97.72498681],
+            _BAND_PERCENTILES,
         )
     )
     return ToyHypothesisTestResult(
