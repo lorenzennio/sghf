@@ -128,17 +128,10 @@ def _expected_cls(
     sqrt_q_asimov: float, *, clipped: bool
 ) -> tuple[float, float, float, float, float]:
     cutoff = -sqrt_q_asimov if clipped else -np.inf
-    values: list[float] = []
-    for n_sigma in (2.0, 1.0, 0.0, -1.0, -2.0):
-        transformed = max(n_sigma, cutoff)
-        values.append(
-            _pvalues(
-                transformed,
-                sqrt_q_asimov,
-                clipped=clipped,
-            )[2]
-        )
-    return tuple(values)  # type: ignore[return-value]
+    return tuple(  # type: ignore[return-value]
+        _pvalues(max(n_sigma, cutoff), sqrt_q_asimov, clipped=clipped)[2]
+        for n_sigma in (2.0, 1.0, 0.0, -1.0, -2.0)
+    )
 
 
 def hypotest(

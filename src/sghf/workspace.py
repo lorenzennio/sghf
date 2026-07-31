@@ -19,16 +19,9 @@ FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 
 _TOP_LEVEL_KEYS = {"channels", "observations", "measurements", "version"}
-_SUPPORTED_MODIFIERS = {
-    "normfactor",
-    "normsys",
-    "histosys",
-    "staterror",
-    "shapesys",
-    "lumi",
-}
 _NORMAL_TYPES = {"normsys", "histosys"}
 _VECTOR_TYPES = {"staterror", "shapesys"}
+# Compilation order of the supported modifiers; the keys are the whitelist.
 _MODIFIER_ORDER = {
     "histosys": 0,
     "lumi": 1,
@@ -37,6 +30,7 @@ _MODIFIER_ORDER = {
     "shapesys": 4,
     "staterror": 5,
 }
+_SUPPORTED_MODIFIERS = _MODIFIER_ORDER.keys()
 
 
 @dataclass
@@ -101,30 +95,22 @@ def _as_float_array(
 
 def _new_group(name: str, modifier_type: str, size: int) -> _ParameterGroup:
     if modifier_type == "normfactor":
-        initial = mean = np.ones(size)
-        lower = np.zeros(size)
-        upper = np.full(size, 10.0)
-        precision = np.zeros(size)
+        centre, lower, upper, precision = 1.0, 0.0, 10.0, 0.0
     elif modifier_type in _NORMAL_TYPES:
-        initial = mean = np.zeros(size)
-        lower = np.full(size, -5.0)
-        upper = np.full(size, 5.0)
-        precision = np.ones(size)
+        centre, lower, upper, precision = 0.0, -5.0, 5.0, 1.0
     else:
-        initial = mean = np.ones(size)
-        lower = np.full(size, 1.0e-10)
-        upper = np.full(size, 10.0)
-        precision = np.zeros(size)
+        centre, lower, upper, precision = 1.0, 1.0e-10, 10.0, 0.0
+    vector = np.full(size, centre)
     return _ParameterGroup(
         name=name,
         modifier_type=modifier_type,
         size=size,
-        initial=initial.copy(),
-        lower=lower,
-        upper=upper,
+        initial=vector.copy(),
+        lower=np.full(size, lower),
+        upper=np.full(size, upper),
         fixed=np.zeros(size, dtype=bool),
-        mean=mean.copy(),
-        precision=precision,
+        mean=vector.copy(),
+        precision=np.full(size, precision),
         uncertainty_sq=np.zeros(size) if modifier_type in _VECTOR_TYPES else None,
         affected_nominal=np.zeros(size) if modifier_type in _VECTOR_TYPES else None,
     )
