@@ -155,6 +155,11 @@ batched to limit temporary memory use; pass `batch_size=...` to control the
 tradeoff explicitly. See [toy inference](docs/toy-inference.md) for the exact
 statistics, conditional ensembles, and finite Monte Carlo resolution.
 
+`model.upper_limit(calculator="toys")` takes the same calculator argument.
+It scans a grid of tested values and interpolates the six crossings rather
+than driving a root finder onto a stochastic curve. See
+[upper limits](docs/upper-limits.md).
+
 ## Workspace compatibility
 
 The compiler supports the standard modifiers used by pyhf workspace schema

@@ -314,8 +314,16 @@ model.upper_limit(
     *,
     level=0.05,
     test_stat="qtilde",
+    calculator="asymptotic",
     variance="nominal",
     bracket=None,
+    scan=None,
+    points=21,
+    ntoys=10_000,
+    batch_size=None,
+    sampling="poisson",
+    rng=None,
+    keep_results=False,
 ) -> LimitResult
 ```
 
@@ -324,10 +332,19 @@ Arguments:
 - `data`: `None`, flat bin sequence, or exact channel mapping;
 - `level`: target $CL_s$ strictly between zero and one;
 - `test_stat`: `"q"` or `"qtilde"`;
+- `calculator`: `"asymptotic"` or `"toys"`;
 - `variance`: `"iterated"` or `"nominal"`;
-- `bracket`: finite `(low, high)` pair or `None` for automatic expansion.
+- `bracket`: finite `(low, high)` pair, or `None` for automatic expansion
+  (asymptotic) or an automatically seeded scan range (toys);
+- `scan`: explicit toy POI grid, at least two distinct finite values;
+- `points`: toy grid size when `scan` is not given;
+- `ntoys`, `batch_size`, `sampling`, `rng`: toy generation, as for
+  `Model.hypotest`;
+- `keep_results`: retain the evaluated tests in `LimitResult.results`.
 
-This method is asymptotic only. See [upper limits](upper-limits.md).
+The asymptotic calculator uses a root finder and ignores every toy-only
+argument. The toy calculator scans a grid and interpolates, because the toy
+$CL_s$ curve is stochastic. See [upper limits](upper-limits.md).
 
 ```python
 limit = model.upper_limit(variance="nominal")
@@ -389,9 +406,12 @@ fit[name] -> float
 | `level` | `float` |
 | `test_stat` | `"q"` or `"qtilde"` |
 | `bracket` | two-float tuple |
-| `results` | tuple of `HypothesisTestResult`, sorted by `poi_test` |
+| `calculator` | `"asymptotic"` or `"toys"` |
+| `scan_values` | float tuple; empty for the asymptotic calculator |
+| `results` | tuple of `HypothesisTestResult` or `ToyHypothesisTestResult`, sorted by `poi_test` |
 
-`results` holds every test evaluated while locating the crossings. It is a
+`results` holds every test evaluated while locating the crossings, and is
+empty unless `keep_results=True`. For the asymptotic calculator it is a
 byproduct of the solve, not a regular scan; see
 [upper limits](upper-limits.md).
 

@@ -28,14 +28,28 @@ model.upper_limit(
     *,
     level=0.05,
     test_stat="qtilde",
+    calculator="asymptotic",
     variance="nominal",
     bracket=None,
+    scan=None,
+    points=21,
+    ntoys=10_000,
+    batch_size=None,
+    sampling="poisson",
+    rng=None,
+    keep_results=False,
 )
 ```
 
 `test_stat` is `q` or `qtilde`. The statistic, variance behavior, and
 asymptotic probabilities are defined in
 [hypothesis testing](hypothesis-testing.md).
+
+`calculator` selects `"asymptotic"` or `"toys"`, exactly as in
+`Model.hypotest`. The asymptotic calculator ignores `scan`, `points`,
+`ntoys`, `batch_size`, `sampling`, and `rng`; the toy calculator ignores
+nothing but reinterprets `bracket` as the range of its scan. The two use
+different crossing algorithms, described below.
 
 ## Limit definition
 
@@ -150,19 +164,22 @@ The immutable result contains:
 | `level` | requested $\alpha$ |
 | `test_stat` | `"q"` or `"qtilde"` |
 | `bracket` | final bracket used for all six solves, including automatic expansion |
-| `results` | every `HypothesisTestResult` evaluated, sorted by `poi_test` |
+| `calculator` | `"asymptotic"` or `"toys"` |
+| `scan_values` | POI grid the toy calculator scanned; empty for the asymptotic one |
+| `results` | every test evaluated, sorted by `poi_test`; empty unless `keep_results=True` |
 
 ### Plotting the evaluated curve
 
-`results` costs nothing extra: it is the set of tests the bracket expansion
-and the six root finds already required. Each entry is a full
-`HypothesisTestResult`, so the observed curve, the expected band, and the
-underlying statistics are all available.
+`results` costs nothing extra: it is the set of tests the solve already
+required. Each entry is a full `HypothesisTestResult` (or
+`ToyHypothesisTestResult`), so the observed curve, the expected band, and
+the underlying statistics are all available. It is returned only when
+asked, because retaining it also retains its fits.
 
 ```python
 import numpy as np
 
-limit = model.upper_limit()
+limit = model.upper_limit(keep_results=True)
 
 poi = np.array([test.poi_test for test in limit.results])
 observed = np.array([test.cls for test in limit.results])
@@ -185,11 +202,68 @@ integrate or to locate a crossing other than the six already reported. When
 an evenly sampled curve is required, call `Model.hypotest` over a grid of
 your own choosing and accept the extra cost.
 
-Retaining a `LimitResult` retains every fit it evaluated. Each
-`HypothesisTestResult` carries four `FitResult` objects, so on a
-232-parameter workspace the 60 retained results held roughly 200 MiB. Peak
-memory during the solve is unchanged, since these objects already existed;
-what changes is that they stay alive as long as the result does.
+`keep_results` defaults to `False` because retaining a `LimitResult` would
+otherwise retain every fit it evaluated. Each `HypothesisTestResult`
+carries four `FitResult` objects, so on a 232-parameter workspace the 60
+retained results held roughly 200 MiB. The flag costs nothing either way:
+the tests are computed regardless, and it only controls whether they are
+handed back.
+
+## The toy calculator
+
+`calculator="toys"` scans a grid of POI values, runs a toy hypothesis test
+at each, and interpolates the crossings. It does not use a root finder,
+and this is not an efficiency choice.
+
+The toy $CL_s$ curve is stochastic. On a 232-parameter workspace at
+`ntoys=10_000` it changes sign ten times across $\mu\in[5.90,6.10]$ and
+carries 2 to 3 percent relative noise, and it does so even at a fixed
+seed, because each tested $\mu$ conditions its ensembles on a different
+fit. Brent's method requires a continuous function with one sign change in
+the bracket. Applied here it would converge to an arbitrary member of a
+cluster of crossings and report it to `xtol=1e-10`, a precision the
+underlying curve does not possess.
+
+So each of the six curves takes its **last** downward crossing of
+$\alpha$, which keeps the reported limit conservative when noise straddles
+the threshold, interpolated linearly in $\log CL_s$. The corrected tail
+fractions of [toy inference](toy-inference.md) are strictly positive, so
+those logarithms are always finite. A curve with no crossing anywhere in
+the scanned range raises `LimitNotFound` naming the curve and reporting the
+$CL_s$ range it actually spanned.
+
+Without an explicit `scan`, the grid is seeded from the asymptotic
+crossings: an asymptotic limit is solved first, and `points` values are
+spaced evenly from $0.7\times$ the smallest crossing to $1.3\times$ the
+largest, clipped below at the POI lower bound. This spends toys where the
+limits are instead of across a mostly empty bracket. Pass `scan` to
+override the grid entirely, or `bracket` to keep the automatic point count
+over a range you choose.
+
+```python
+limit = model.upper_limit(
+    calculator="toys",
+    ntoys=20_000,
+    rng=1234,
+)
+
+limit.observed      # interpolated crossing of the observed curve
+limit.scan_values   # the grid actually evaluated
+```
+
+Cost is one toy hypothesis test per grid point, plus one asymptotic solve
+when the grid is seeded automatically. On the 232-parameter workspace a
+default 21-point scan at `ntoys=10_000` took 35 seconds and returned an
+observed limit of 6.13 against the asymptotic 5.98.
+
+Two resolutions bound the result and neither is reported as an
+uncertainty. Monte Carlo noise on $CL_s$ propagates to the crossing:
+repeating a one-bin limit across six seeds at `ntoys=20_000` moved the
+observed value by a standard deviation of about 1 percent. Grid spacing
+bounds the interpolation: the default 21 points over a seeded range gave
+a spacing of 0.35 on the reference workspace, which the $-2\sigma$
+crossing near 1.3 resolves only coarsely. Raise `points` or pass a
+targeted `scan` when either matters.
 
 ## Failures
 
@@ -197,6 +271,9 @@ what changes is that they stay alive as long as the result does.
 
 - `level` is not strictly between zero and one;
 - the bracket is non-finite, non-increasing, or otherwise invalid;
+- `calculator` is neither `"asymptotic"` nor `"toys"`;
+- a toy `scan` holds fewer than two distinct values, or any non-finite one;
+- `points` is not an integer of at least two;
 - an invalid test statistic or variance mode reaches the hypothesis-test
   implementation.
 
@@ -204,7 +281,8 @@ what changes is that they stay alive as long as the result does.
 
 - an endpoint $CL_s$ is non-finite;
 - a curve has no sign change inside the requested bracket;
-- automatic expansion does not bracket all six curves within its loop.
+- automatic expansion does not bracket all six curves within its loop;
+- a toy curve never crosses $\alpha$ within the scanned grid.
 
 ## Interpretation and applicability
 

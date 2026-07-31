@@ -61,8 +61,8 @@ and documents all arguments and return fields.
    $\tilde q_\mu$, conditional Asimov data, and asymptotic probabilities.
 5. [Toy inference](toy-inference.md) derives the vectorized nominal estimator,
    empirical exclusion, and toy-based $q_0$ discovery.
-6. [Upper limits](upper-limits.md) documents asymptotic $CL_s$ inversion and
-   bracketing.
+6. [Upper limits](upper-limits.md) documents $CL_s$ inversion: asymptotic
+   root finding with bracketing, and the toy grid scan.
 7. [API reference](api-reference.md) lists every public method, result field,
    default, and exception.
 8. [Validation and applicability](validation-and-applicability.md) gives the
@@ -95,6 +95,7 @@ and documents all arguments and return fields.
 | `model.hypotest(..., calculator="toys")` | nominal variance | vectorized empirical exclusion or discovery |
 | any of the above with `variance="iterated"` | explicit opt-in | reweighted solves; per-toy fits for the toy calculator |
 | `model.upper_limit()` | nominal asymptotic | roots of observed and expected $CL_s$ curves |
+| `model.upper_limit(..., calculator="toys")` | nominal variance | grid scan of toy $CL_s$ curves with interpolated crossings |
 
 Every entry point defaults to `variance="nominal"` so that the asymptotic and
 toy calculators evaluate the same test statistic and can be compared directly.
