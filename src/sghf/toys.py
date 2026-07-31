@@ -91,29 +91,6 @@ def _rng(value: int | np.random.Generator | None) -> np.random.Generator:
     return np.random.default_rng(value)
 
 
-def _parameter_values(
-    model: Model,
-    parameters: Sequence[float] | Mapping[str, float] | FitResult | None,
-) -> FloatArray:
-    if parameters is None:
-        return model.initial.copy()
-    if isinstance(parameters, FitResult):
-        values = np.asarray(parameters.values, dtype=float)
-    elif isinstance(parameters, Mapping):
-        values = model.initial.copy()
-        for name, value in parameters.items():
-            values[model.parameter_index(name)] = float(value)
-    else:
-        values = np.asarray(parameters, dtype=float)
-    if values.shape != model.initial.shape:
-        raise ValueError(
-            f"Parameters must contain {model.initial.size} value(s)"
-        )
-    if not np.all(np.isfinite(values)):
-        raise ValueError("Parameter values must be finite")
-    return values
-
-
 def generate_toys(
     model: Model,
     size: int,
@@ -131,7 +108,7 @@ def generate_toys(
         raise ValueError("size must be positive")
     if sampling not in {"poisson", "gaussian"}:
         raise ValueError("sampling must be 'poisson' or 'gaussian'")
-    values = _parameter_values(model, parameters)
+    values = model._parameter_array(parameters)
     expected = model.expected(values)
     generator = _rng(rng)
     if sampling == "poisson":

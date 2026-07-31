@@ -67,18 +67,25 @@ class Model:
 
         return self.response[:, self.parameter_index(name)].copy()
 
-    def expected(
+    def _parameter_array(
         self,
-        parameters: Sequence[float] | Mapping[str, float] | FitResult,
+        parameters: Sequence[float] | Mapping[str, float] | FitResult | None,
     ) -> FloatArray:
-        """Evaluate the compiled linear model at ``parameters``."""
+        """Coerce parameters to a validated full-length value array.
 
-        if hasattr(parameters, "values") and not isinstance(parameters, Mapping):
-            values = np.asarray(parameters.values, dtype=float)
-        elif isinstance(parameters, Mapping):
+        Accepts a full scalar sequence, a partial name-to-value mapping
+        applied to a copy of ``initial``, a ``FitResult``, or ``None`` for
+        ``initial`` itself.
+        """
+
+        if parameters is None:
+            return self.initial.copy()
+        if isinstance(parameters, Mapping):
             values = self.initial.copy()
             for name, value in parameters.items():
                 values[self.parameter_index(name)] = float(value)
+        elif hasattr(parameters, "values"):
+            values = np.asarray(parameters.values, dtype=float)
         else:
             values = np.asarray(parameters, dtype=float)
         if values.shape != self.initial.shape:
@@ -87,6 +94,15 @@ class Model:
             )
         if not np.all(np.isfinite(values)):
             raise ValueError("Parameter values must be finite")
+        return values
+
+    def expected(
+        self,
+        parameters: Sequence[float] | Mapping[str, float] | FitResult,
+    ) -> FloatArray:
+        """Evaluate the compiled linear model at ``parameters``."""
+
+        values = self._parameter_array(parameters)
         result = self.nominal_expected + self.response @ (
             values - self.initial
         )
